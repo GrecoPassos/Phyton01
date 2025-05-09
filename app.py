@@ -1,11 +1,23 @@
 from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
+from flask_cors import CORS
+from flask_login import UserMixin
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///ecommerce.db'
 
 
 db = SQLAlchemy(app)
+CORS(app)
+
+
+class User(db.Model, UserMixin):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(80), unique=True, nullable=False)
+    password = db.Column(db.String(120), nullable=True)
+
+
+
 
 # Modelagem 
 # Produto (Id, Name, Price, Description)
@@ -14,6 +26,15 @@ class Product(db.Model):
     name = db.Column(db.String(120), nullable=False)
     price = db.Column(db.Float, nullable=False)
     description = db.Column(db.Text)
+
+
+@app.route('/login', methods=["POST"])
+def login():
+    data = request.json
+    username = data.get("username")
+    password = data.get("password")
+
+
 
 @app.route('/api/products/add', methods=["POST"])
 def add_product():
@@ -47,6 +68,38 @@ def get_product_details(product_id):
         })
     return jsonify({"message": "Product not found"}), 404
 
+
+@app.route('/api/products/update/<int:product_id>', methods=['PUT'])
+def update_product(product_id):
+    product = Product.query.get(product_id)
+    if not product:
+        return jsonify({"message": "Product not found"}), 404
+    data = request.json
+    if 'name' in data:
+        product.name = data['name']
+
+    if 'price' in data:
+        product.price = data['price']
+
+    if 'description' in data:
+        product.description = data['description']
+
+    db.session.commit()
+    return jsonify({'message': 'Product updated successfully'})
+
+
+@app.route('/api/products', methods=['GET'])
+
+def get_all_products():
+    products = Product.query.all()
+    product_list = []
+    for product in products:
+        product_list.append({
+            "id": product.id,
+            "name": product.name,
+            "price": product.price
+        })
+    return jsonify(product_list)
 # Definir uma rota raiz (pagina inicial) e a função q sera executada ao requisitar
 @app.route('/')
 def hello_world():
